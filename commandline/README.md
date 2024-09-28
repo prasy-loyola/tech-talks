@@ -1,0 +1,24 @@
+# Commandline
+
+- What is difference between GUI and CLI
+- CLI Interfaces - Stdin, stdout, stderr
+- Pipes
+- Options - Conventions
+- Manuals
+- Customization 
+    - Aliases
+- Tools
+    - bash
+    - cd
+    - cat
+    - ls
+    - mkdir
+    - curl
+    - wget
+    - touch
+    - chmod
+    - chown
+    - nano
+    - vim
+    - open
+    - file

@@ -1,0 +1,24 @@
+<html>
+    <head>
+        <title>
+        </title>
+    </head>
+    <body>
+        Phone Number: <input id="phone" type="number"/><br>
+        <a href="/profile.html">Profile</a><br>
+        <button onclick="validate()"> Validate</button><br>
+        <script>
+            function validate() {
+               let phone = document.getElementById("phone").value;
+                if (phone.length < 10) {
+                    alert("Invalid Phone number: Number is less than 10");
+                }
+                else if (phone.length > 10) {
+                    alert("Invalid Phone number: Number is greater than 10");
+                } else {
+                    alert("Phone number is valid");
+                }
+            }
+        </script>
+    </body>
+</html>
