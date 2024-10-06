@@ -10,24 +10,37 @@ import (
 )
 
 var info *log.Logger = log.New(io.Discard, "[INFO] ", log.LstdFlags)
+var error *log.Logger = log.New(os.Stderr, "[ERROR] ", log.LstdFlags)
 var output *log.Logger = log.New(os.Stdout, "", 0)
 var assembly *log.Logger = log.New(os.Stdout, "", 0)
 
 func main() {
 
-	var interpreter = false
+    args := os.Args
+
+    if len(args) < 3 {
+        error.Printf("Missing arguments.\nUsage: tlangc <command> <filename>\ncommand: i - interpret, c - compile\n")
+        os.Exit(1)
+    }
+
+    if args[1] != "c" && args[1] != "i" {
+        error.Printf("Invalid argument '%s'.\nUsage: tlangc <command> <filename>\ncommand: i - interpret, c - compile\n", args[1])
+        os.Exit(1)
+    }
+
+	var interpreter = args[1] == "i"
 
 	if !interpreter {
 		assembly.Printf(`
-        format ELF64 executable 3
+format ELF64 executable 3
 
-        ; syscalls
-            SYS_EXIT = 60 
-            SYS_WRITE = 1
+; syscalls
+    SYS_EXIT = 60 
+    SYS_WRITE = 1
 
-        ; constants
-            LN = 10
-            STD_OUT = 1
+; constants
+    LN = 10
+    STD_OUT = 1
 
             `)
 
@@ -35,11 +48,12 @@ func main() {
 
 	var stack []int64 = []int64{}
 
-	var filename string = "main.tlang"
+	var filename string = args[2]
 	var sourceFile, err = os.Open(filename)
 
 	if err != nil {
-		info.Printf("Couldn't open the file %s. %s\n", filename, err.Error())
+		error.Printf("Couldn't open the file '%s'.\n%s\n", filename, err.Error())
+        os.Exit(1)
 	}
 
 	content, err := io.ReadAll(sourceFile)
@@ -159,13 +173,13 @@ func main() {
 
 	if !interpreter {
 		assembly.Printf(`
-            mov  rax, SYS_EXIT
-            mov  rdi, 1
-            syscall
+    mov  rax, SYS_EXIT
+    mov  rdi, 1
+    syscall
 
-        msg:
-            db ' ', LN, 0
-            msg_size = $ - msg
+msg:
+    db ' ', LN, 0
+    msg_size = $ - msg
             `)
 
 	}
