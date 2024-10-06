@@ -1,0 +1,18 @@
+[
+{
+    "StudentId": 1,
+    "Tamil": 62,
+    "Social": 28,
+    "Maths": 60,
+    "English": 61,
+    "Science": 68
+}, 
+{
+    "StudentId": 2,
+    "Maths": 80,
+    "Science": 58,
+    "Social": 21,
+    "English": 91,
+    "Tamil": 22
+}
+]
