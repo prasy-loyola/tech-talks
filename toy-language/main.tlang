@@ -1,7 +1,9 @@
-0 
-if 
-    2 print
-else 
-    1 print
-then
+10 
+
+while 
+    
+    0 print
+
+    1 -
+end
 print

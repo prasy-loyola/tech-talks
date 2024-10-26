@@ -13,6 +13,7 @@ func main() {
 	args := os.Args
 
 	ifCount := 0
+	whileCount := 0
 
 	if len(args) < 3 {
 		Error.Printf("Missing arguments.\nUsage: tlangc <command> <filename>\ncommand: i - interpret, c - compile\n")
@@ -134,9 +135,9 @@ format ELF64 executable 3
 			} else {
 
 				// pop num1
-				Assembly.Printf("pop rax")
-				// pop num2
 				Assembly.Printf("pop rdx")
+				// pop num2
+				Assembly.Printf("pop rax")
 				// add
 				Assembly.Printf("sub rax, rdx")
 				// push result to stack
@@ -162,6 +163,7 @@ format ELF64 executable 3
 			if interpreter {
 				panic("if condition Not Implemented")
 			} else {
+				Assembly.Printf("; Token: %s", token)
 				Assembly.Printf(`
 
 ; IF_%d starts
@@ -173,12 +175,14 @@ push rax
 test rax, rax`, ifCount)
 				Assembly.Printf("jz IF_%d_ELSE", ifCount)
 				Assembly.Printf("IF_%d:", ifCount)
+				ifCount++
 			}
 
 		} else if token == "else" {
 			if interpreter {
 				panic("If-Else not supported in interpreter")
 			} else {
+				Assembly.Printf("; Token: %s", token)
 				Assembly.Printf("jmp IF_%d_THEN", ifCount) // jump after then before else
 				Assembly.Printf("IF_%d_ELSE:", ifCount)
 			}
@@ -187,7 +191,34 @@ test rax, rax`, ifCount)
 			if interpreter {
 				panic("If-Else not supported in interpreter")
 			} else {
+				Assembly.Printf("; Token: %s", token)
 				Assembly.Printf("IF_%d_THEN:", ifCount)
+			}
+		} else if token == "while" {
+			if interpreter {
+				panic("while not supported in interpreter")
+			} else {
+				Assembly.Printf("; Token: %s", token)
+				Assembly.Printf(`
+
+; WHILE_%d starts
+WHILE_%d:
+; Duplicate value on stack
+pop rax
+push rax
+
+; Test if zero
+test rax, rax`, whileCount, whileCount)
+				Assembly.Printf("jz WHILE_%d_END", ifCount)
+				whileCount++
+			}
+		} else if token == "end" {
+			if interpreter {
+				panic("while end not supported in interpreter")
+			} else {
+				Assembly.Printf("; Token: %s", token)
+				Assembly.Printf("jmp WHILE_%d", ifCount)
+				Assembly.Printf("WHILE_%d_END:", ifCount)
 			}
 		} else {
 			panic(fmt.Sprintf("Unrecognized token: '%s'", token))
