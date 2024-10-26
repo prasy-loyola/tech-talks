@@ -10,17 +10,19 @@ import (
 
 func main() {
 
-    args := os.Args
+	args := os.Args
 
-    if len(args) < 3 {
-        Error.Printf("Missing arguments.\nUsage: tlangc <command> <filename>\ncommand: i - interpret, c - compile\n")
-        os.Exit(1)
-    }
+	ifCount := 0
 
-    if args[1] != "c" && args[1] != "i" {
-        Error.Printf("Invalid argument '%s'.\nUsage: tlangc <command> <filename>\ncommand: i - interpret, c - compile\n", args[1])
-        os.Exit(1)
-    }
+	if len(args) < 3 {
+		Error.Printf("Missing arguments.\nUsage: tlangc <command> <filename>\ncommand: i - interpret, c - compile\n")
+		os.Exit(1)
+	}
+
+	if args[1] != "c" && args[1] != "i" {
+		Error.Printf("Invalid argument '%s'.\nUsage: tlangc <command> <filename>\ncommand: i - interpret, c - compile\n", args[1])
+		os.Exit(1)
+	}
 
 	var interpreter = args[1] == "i"
 
@@ -47,12 +49,15 @@ format ELF64 executable 3
 
 	if err != nil {
 		Error.Printf("Couldn't open the file '%s'.\n%s\n", filename, err.Error())
-        os.Exit(1)
+		os.Exit(1)
 	}
 
-	content, err := io.ReadAll(sourceFile)
+	contentbytes, err := io.ReadAll(sourceFile)
 
-	tokens := strings.Split(string(content), " ")
+	content := string(contentbytes)
+	content = strings.ReplaceAll(content, "\n", " ")
+
+	tokens := strings.Split(content, " ")
 
 	for _, token := range tokens {
 		token = strings.Trim(token, "\n")
@@ -138,7 +143,7 @@ format ELF64 executable 3
 				Assembly.Printf("push rax")
 			}
 
-		} else if token == "print" { // Print
+		} else if token == "print" {
 			if interpreter {
 				if len(stack) < 1 {
 					panic("Not enough item on stack for '$' operator")
@@ -150,9 +155,40 @@ format ELF64 executable 3
 
 				Assembly.Printf("; Token: %s", token)
 				Assembly.Printf("pop rax")
-                Assembly.Printf("call Print_Number")
+				Assembly.Printf("call Print_Number")
 			}
 
+		} else if token == "if" {
+			if interpreter {
+				panic("if condition Not Implemented")
+			} else {
+				Assembly.Printf(`
+
+; IF_%d starts
+; Duplicate value on stack
+pop rax
+push rax
+
+; Test if zero
+test rax, rax`, ifCount)
+				Assembly.Printf("jz IF_%d_ELSE", ifCount)
+				Assembly.Printf("IF_%d:", ifCount)
+			}
+
+		} else if token == "else" {
+			if interpreter {
+				panic("If-Else not supported in interpreter")
+			} else {
+				Assembly.Printf("jmp IF_%d_THEN", ifCount) // jump after then before else
+				Assembly.Printf("IF_%d_ELSE:", ifCount)
+			}
+
+		} else if token == "then" {
+			if interpreter {
+				panic("If-Else not supported in interpreter")
+			} else {
+				Assembly.Printf("IF_%d_THEN:", ifCount)
+			}
 		} else {
 			panic(fmt.Sprintf("Unrecognized token: '%s'", token))
 		}
@@ -170,39 +206,44 @@ msg:
     db ' ', LN, 0
     msg_size = $ - msg
 
-DECIMAL  DB "00000$", LN, 0            ; place to hold the decimal number
-    DECIMAL_SIZE = $ - DECIMAL
-COUNT DB 0
+
+	DECIMAL DB "00000000000000000000", LN, 0; place to hold the decimal number
+	DECIMAL_SIZE = $ - DECIMAL
+	COUNT   DB 0
 
 Print_Number:
-        mov bx, 10              ; divisor
-        xor cx, cx              ; CX=0 (number of digits)
+	mov rbx, 10; divisor
+	xor rcx, rcx; CX=0 (number of digits)
 
-    First_Loop:
-        xor dx, dx              ; Attention: DIV applies also DX!
-        div bx                  ; DX:AX / BX = AX remainder: DX
-        push dx                 ; LIFO
-        inc cl                  ; increment number of digits
-        test  ax, ax            ; AX = 0?
-        jnz First_Loop          ; no: once more
+Getting_Digits_Loop:
+	xor  rdx, rdx; Attention: DIV applies also RDX!
+	div  rbx; RDX:RAX / BX = AX remainder: RDX
+	push dx; LIFO
+	inc  rcx; increment number of digits
+	test rax, rax; RAX = 0?
+	jnz  Getting_Digits_Loop; no: once more
 
-        mov byte [COUNT], cl
-        mov rsi, DECIMAL         ; target string DECIMAL
-    Second_Loop:
-        pop ax                  ; get back pushed digit
-        or al, 00110000b        ; AL to ASCII
-        mov byte [rsi], al            ; save AL
-        inc rsi
-        loop Second_Loop        ; until there are no digits left
+	mov byte [COUNT], cl; storing the number of digits to memory
+	mov rsi, DECIMAL; target string DECIMAL
 
-        mov byte [rsi], '$'      ; End-of-string delimiter for INT 21 / FN 09h
+Storing_Digits_Loop:
+	pop  ax; get back pushed digit
+	or   al, '0'; AL to ASCII
+	mov  byte [rsi], al; save AL
+	inc  rsi
+	loop Storing_Digits_Loop; until there are no digits left
 
-    mov  rax, SYS_WRITE
-    mov  rdi, STD_OUT
-    mov  rsi, DECIMAL
-    mov dl, byte [COUNT]
-    syscall
-    ret `)
+	mov byte [rsi], '$'; End-of-string delimiter for INT 21 / FN 09h
+
+	;Print
+	mov rax, SYS_WRITE
+	mov rdi, STD_OUT
+	mov rsi, DECIMAL
+	xor rdx, rdx
+	mov dl, byte [COUNT]
+	syscall
+	ret
+ `)
 
 	}
 

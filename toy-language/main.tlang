@@ -1,1 +1,7 @@
-23 100 + print
+0 
+if 
+    2 print
+else 
+    1 print
+then
+print

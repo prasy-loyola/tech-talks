@@ -12,4 +12,4 @@ go build -o tlangc
 ./tlangc c $source > .intermediate.asm
 fasm .intermediate.asm $output > /dev/null
 chmod a+x $output
-rm .intermediate.asm
+# rm .intermediate.asm
