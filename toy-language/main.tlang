@@ -1,9 +1,6 @@
 10 
-
 while 
-    
-    0 print
-
+    dup print
+    10 1 puts
     1 -
 end
-print

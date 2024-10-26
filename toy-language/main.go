@@ -14,6 +14,8 @@ func main() {
 
 	ifCount := 0
 	whileCount := 0
+	currIf := ifCount
+	currWhile := whileCount
 
 	if len(args) < 3 {
 		Error.Printf("Missing arguments.\nUsage: tlangc <command> <filename>\ncommand: i - interpret, c - compile\n")
@@ -38,6 +40,7 @@ format ELF64 executable 3
 ; constants
     LN = 10
     STD_OUT = 1
+    PRINT_BUFFER_SIZE = 10000
 
             `)
 
@@ -68,6 +71,9 @@ format ELF64 executable 3
 		if strings.Trim(token, " ") == "" {
 			continue
 		}
+		if !interpreter {
+			Assembly.Printf("; Token: %s", token)
+		}
 
 		token_b := []byte(token)
 		if token_b[0] >= '0' && token_b[0] <= '9' {
@@ -78,7 +84,6 @@ format ELF64 executable 3
 			if interpreter {
 				stack = append(stack, number)
 			} else {
-				Assembly.Printf("; Token: %s", token)
 				Assembly.Printf("push %d", number)
 			}
 
@@ -101,7 +106,6 @@ format ELF64 executable 3
 				// push to stack
 				stack = append(stack, sum)
 			} else {
-				Assembly.Printf("; Token: %s", token)
 
 				// pop num1
 				Assembly.Printf("pop rax")
@@ -115,7 +119,6 @@ format ELF64 executable 3
 
 		} else if token == "-" {
 
-			Assembly.Printf("; Token: %s", token)
 			if interpreter {
 				if len(stack) < 2 {
 					panic("Not enough item on stack for '+' operator")
@@ -144,6 +147,23 @@ format ELF64 executable 3
 				Assembly.Printf("push rax")
 			}
 
+		} else if token == "puts" {
+			if interpreter {
+				if len(stack) < 1 {
+					panic("Not enough item on stack for '$' operator")
+				}
+				num1 := stack[len(stack)-1]
+				for i := int64(0); i < num1; i++ {
+					if len(stack) < 1 {
+						panic("Not enough item on stack for '$' operator")
+					}
+					Output.Printf("%c", stack[len(stack)-1])
+					stack = stack[0 : len(stack)-1]
+				}
+			} else {
+				Assembly.Printf("call Print_On_Stack")
+			}
+
 		} else if token == "print" {
 			if interpreter {
 				if len(stack) < 1 {
@@ -154,7 +174,6 @@ format ELF64 executable 3
 				Output.Printf("%d", num1)
 			} else {
 
-				Assembly.Printf("; Token: %s", token)
 				Assembly.Printf("pop rax")
 				Assembly.Printf("call Print_Number")
 			}
@@ -163,7 +182,8 @@ format ELF64 executable 3
 			if interpreter {
 				panic("if condition Not Implemented")
 			} else {
-				Assembly.Printf("; Token: %s", token)
+				ifCount++
+				currIf = ifCount
 				Assembly.Printf(`
 
 ; IF_%d starts
@@ -172,33 +192,32 @@ pop rax
 push rax
 
 ; Test if zero
-test rax, rax`, ifCount)
-				Assembly.Printf("jz IF_%d_ELSE", ifCount)
-				Assembly.Printf("IF_%d:", ifCount)
-				ifCount++
+test rax, rax`, currIf)
+				Assembly.Printf("jz IF_%d_ELSE", currIf)
+				Assembly.Printf("IF_%d:", currIf)
 			}
 
 		} else if token == "else" {
 			if interpreter {
 				panic("If-Else not supported in interpreter")
 			} else {
-				Assembly.Printf("; Token: %s", token)
-				Assembly.Printf("jmp IF_%d_THEN", ifCount) // jump after then before else
-				Assembly.Printf("IF_%d_ELSE:", ifCount)
+				Assembly.Printf("jmp IF_%d_THEN", currIf) // jump after then before else
+				Assembly.Printf("IF_%d_ELSE:", currIf)
 			}
 
 		} else if token == "then" {
 			if interpreter {
 				panic("If-Else not supported in interpreter")
 			} else {
-				Assembly.Printf("; Token: %s", token)
-				Assembly.Printf("IF_%d_THEN:", ifCount)
+				Assembly.Printf("IF_%d_THEN:", currIf)
+				currIf--
 			}
 		} else if token == "while" {
 			if interpreter {
 				panic("while not supported in interpreter")
 			} else {
-				Assembly.Printf("; Token: %s", token)
+				whileCount++
+				currWhile = whileCount
 				Assembly.Printf(`
 
 ; WHILE_%d starts
@@ -208,17 +227,27 @@ pop rax
 push rax
 
 ; Test if zero
-test rax, rax`, whileCount, whileCount)
-				Assembly.Printf("jz WHILE_%d_END", ifCount)
-				whileCount++
+test rax, rax`, currWhile, currWhile)
+				Assembly.Printf("jz WHILE_%d_END", currWhile)
 			}
 		} else if token == "end" {
 			if interpreter {
 				panic("while end not supported in interpreter")
 			} else {
-				Assembly.Printf("; Token: %s", token)
-				Assembly.Printf("jmp WHILE_%d", ifCount)
-				Assembly.Printf("WHILE_%d_END:", ifCount)
+				Assembly.Printf("jmp WHILE_%d", currWhile)
+				Assembly.Printf("WHILE_%d_END:", currWhile)
+				currWhile--
+			}
+		} else if token == "dup" {
+			if interpreter {
+				// pop num1
+				num1 := stack[len(stack)-1]
+				// push num1
+				stack = append(stack, num1)
+			} else {
+				Assembly.Printf("pop rax")
+				Assembly.Printf("push rax")
+				Assembly.Printf("push rax")
 			}
 		} else {
 			panic(fmt.Sprintf("Unrecognized token: '%s'", token))
@@ -234,13 +263,32 @@ test rax, rax`, whileCount, whileCount)
     syscall
 
 msg:
-    db ' ', LN, 0
+    rb PRINT_BUFFER_SIZE
     msg_size = $ - msg
 
 
 	DECIMAL DB "00000000000000000000", LN, 0; place to hold the decimal number
 	DECIMAL_SIZE = $ - DECIMAL
 	COUNT   DB 0
+
+Print_On_Stack:
+    pop rbp; storing the return pointer
+    pop rdx; storing the count
+    mov rcx, rdx; using the count as the counter for loop
+    mov rsi, msg; using the buffer to write 
+    add rsi, rcx; starting to fill from the end to reverse the order in the text
+    Copy_To_Msg_Loop:
+        dec rsi
+        pop rax
+        mov byte [rsi], al
+        loop Copy_To_Msg_Loop; copy until rcx is zero
+	;Print
+	mov rax, SYS_WRITE
+	mov rdi, STD_OUT
+	mov rsi, msg
+	syscall
+    push rbp
+	ret
 
 Print_Number:
 	mov rbx, 10; divisor
