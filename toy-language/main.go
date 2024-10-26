@@ -3,35 +3,29 @@ package main
 import (
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"strconv"
 	"strings"
 )
-
-var info *log.Logger = log.New(io.Discard, "[INFO] ", log.LstdFlags)
-var error *log.Logger = log.New(os.Stderr, "[ERROR] ", log.LstdFlags)
-var output *log.Logger = log.New(os.Stdout, "", 0)
-var assembly *log.Logger = log.New(os.Stdout, "", 0)
 
 func main() {
 
     args := os.Args
 
     if len(args) < 3 {
-        error.Printf("Missing arguments.\nUsage: tlangc <command> <filename>\ncommand: i - interpret, c - compile\n")
+        Error.Printf("Missing arguments.\nUsage: tlangc <command> <filename>\ncommand: i - interpret, c - compile\n")
         os.Exit(1)
     }
 
     if args[1] != "c" && args[1] != "i" {
-        error.Printf("Invalid argument '%s'.\nUsage: tlangc <command> <filename>\ncommand: i - interpret, c - compile\n", args[1])
+        Error.Printf("Invalid argument '%s'.\nUsage: tlangc <command> <filename>\ncommand: i - interpret, c - compile\n", args[1])
         os.Exit(1)
     }
 
 	var interpreter = args[1] == "i"
 
 	if !interpreter {
-		assembly.Printf(`
+		Assembly.Printf(`
 format ELF64 executable 3
 
 ; syscalls
@@ -52,7 +46,7 @@ format ELF64 executable 3
 	var sourceFile, err = os.Open(filename)
 
 	if err != nil {
-		error.Printf("Couldn't open the file '%s'.\n%s\n", filename, err.Error())
+		Error.Printf("Couldn't open the file '%s'.\n%s\n", filename, err.Error())
         os.Exit(1)
 	}
 
@@ -62,8 +56,8 @@ format ELF64 executable 3
 
 	for _, token := range tokens {
 		token = strings.Trim(token, "\n")
-		info.Printf("Token: %v\n", token)
-		info.Printf("Stack: %v\n", stack)
+		Info.Printf("Token: %v\n", token)
+		Info.Printf("Stack: %v\n", stack)
 
 		if strings.Trim(token, " ") == "" {
 			continue
@@ -78,8 +72,8 @@ format ELF64 executable 3
 			if interpreter {
 				stack = append(stack, number)
 			} else {
-				assembly.Printf("; Token: %s", token)
-				assembly.Printf("push %d", number)
+				Assembly.Printf("; Token: %s", token)
+				Assembly.Printf("push %d", number)
 			}
 
 		} else if token == "+" {
@@ -101,21 +95,21 @@ format ELF64 executable 3
 				// push to stack
 				stack = append(stack, sum)
 			} else {
-				assembly.Printf("; Token: %s", token)
+				Assembly.Printf("; Token: %s", token)
 
 				// pop num1
-				assembly.Printf("pop rax")
+				Assembly.Printf("pop rax")
 				// pop num2
-				assembly.Printf("pop rdx")
+				Assembly.Printf("pop rdx")
 				// add
-				assembly.Printf("add rax, rdx")
+				Assembly.Printf("add rax, rdx")
 				// push result to stack
-				assembly.Printf("push rax")
+				Assembly.Printf("push rax")
 			}
 
 		} else if token == "-" {
 
-			assembly.Printf("; Token: %s", token)
+			Assembly.Printf("; Token: %s", token)
 			if interpreter {
 				if len(stack) < 2 {
 					panic("Not enough item on stack for '+' operator")
@@ -135,44 +129,39 @@ format ELF64 executable 3
 			} else {
 
 				// pop num1
-				assembly.Printf("pop rax")
+				Assembly.Printf("pop rax")
 				// pop num2
-				assembly.Printf("pop rdx")
+				Assembly.Printf("pop rdx")
 				// add
-				assembly.Printf("sub rax, rdx")
+				Assembly.Printf("sub rax, rdx")
 				// push result to stack
-				assembly.Printf("push rax")
+				Assembly.Printf("push rax")
 			}
 
-		} else if token == "$" { // Print
+		} else if token == "print" { // Print
 			if interpreter {
 				if len(stack) < 1 {
 					panic("Not enough item on stack for '$' operator")
 				}
 				num1 := stack[len(stack)-1]
 				stack = stack[0 : len(stack)-1]
-				output.Printf("%d", num1)
+				Output.Printf("%d", num1)
 			} else {
 
-				assembly.Printf("; Token: %s", token)
-				assembly.Printf("pop rax")
-				assembly.Printf("mov byte [msg], al")
-				assembly.Printf("mov  rax, SYS_WRITE")
-				assembly.Printf("mov  rdi, STD_OUT")
-				assembly.Printf("mov  rsi, msg")
-				assembly.Printf("mov  rdx, msg_size")
-				assembly.Printf("syscall")
+				Assembly.Printf("; Token: %s", token)
+				Assembly.Printf("pop rax")
+                Assembly.Printf("call Print_Number")
 			}
 
 		} else {
 			panic(fmt.Sprintf("Unrecognized token: '%s'", token))
 		}
-		info.Printf("After processing token Stack: %v\n", stack)
+		Info.Printf("After processing token Stack: %v\n", stack)
 
 	}
 
 	if !interpreter {
-		assembly.Printf(`
+		Assembly.Printf(`
     mov  rax, SYS_EXIT
     mov  rdi, 1
     syscall
@@ -180,7 +169,40 @@ format ELF64 executable 3
 msg:
     db ' ', LN, 0
     msg_size = $ - msg
-            `)
+
+DECIMAL  DB "00000$", LN, 0            ; place to hold the decimal number
+    DECIMAL_SIZE = $ - DECIMAL
+COUNT DB 0
+
+Print_Number:
+        mov bx, 10              ; divisor
+        xor cx, cx              ; CX=0 (number of digits)
+
+    First_Loop:
+        xor dx, dx              ; Attention: DIV applies also DX!
+        div bx                  ; DX:AX / BX = AX remainder: DX
+        push dx                 ; LIFO
+        inc cl                  ; increment number of digits
+        test  ax, ax            ; AX = 0?
+        jnz First_Loop          ; no: once more
+
+        mov byte [COUNT], cl
+        mov rsi, DECIMAL         ; target string DECIMAL
+    Second_Loop:
+        pop ax                  ; get back pushed digit
+        or al, 00110000b        ; AL to ASCII
+        mov byte [rsi], al            ; save AL
+        inc rsi
+        loop Second_Loop        ; until there are no digits left
+
+        mov byte [rsi], '$'      ; End-of-string delimiter for INT 21 / FN 09h
+
+    mov  rax, SYS_WRITE
+    mov  rdi, STD_OUT
+    mov  rsi, DECIMAL
+    mov dl, byte [COUNT]
+    syscall
+    ret `)
 
 	}
 
