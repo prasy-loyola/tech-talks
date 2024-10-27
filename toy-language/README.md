@@ -28,6 +28,16 @@
 
 
 
+## TODO
+- [ ] Create a Instruction set for VM
+- [ ] Write a Parser
+- [ ] drop keyword
+- [ ] conditional operators <, > , <= , == , >=, !
+- [ ] if without an else 
+- [ ] better errors on syntax issues 
+    - eg. if without a then is not reported
+
+
 
 
 

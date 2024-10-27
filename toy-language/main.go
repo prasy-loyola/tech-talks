@@ -65,6 +65,19 @@ format ELF64 executable 3
 
 	tokens := strings.Split(content, " ")
 
+    parser := Parser {
+        tokens : tokens,
+    }
+    program := parser.Parse()
+    // fmt.Printf("Program: %v", program)
+    // Interpret(program)
+    program.saveToFile()
+    program = readFromFile()
+    Info.Printf("Program: %v", program)
+
+
+    return
+
 	for _, token := range tokens {
 		token = strings.Trim(token, "\n")
 		Info.Printf("Token: %v\n", token)
@@ -254,14 +267,14 @@ test rax, rax`, currWhile, currWhile)
 				Assembly.Printf("WHILE_%d_END:", currWhile)
 				if len(whileStack) > 0 {
 					whileStack = whileStack[:len(whileStack)-1]
-                    if len(whileStack) > 0 {
-				        currWhile = whileStack[len(whileStack) - 1]
-                    } else {
-                        currWhile = -1
-                    }
+					if len(whileStack) > 0 {
+						currWhile = whileStack[len(whileStack)-1]
+					} else {
+						currWhile = -1
+					}
 				} else {
-                    panic("'end' without a while ")
-                }
+					panic("'end' without a while ")
+				}
 			}
 		} else if token == "dup" {
 			if interpreter {
