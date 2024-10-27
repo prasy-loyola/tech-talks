@@ -152,14 +152,17 @@ format ELF64 executable 3
 				if len(stack) < 1 {
 					panic("Not enough item on stack for '$' operator")
 				}
-				num1 := stack[len(stack)-1]
-				for i := int64(0); i < num1; i++ {
+				size := stack[len(stack)-1]
+				stack = stack[0 : len(stack)-1]
+				tempStack := make([]byte, size)
+				for i := size - 1; i >= 0; i-- {
 					if len(stack) < 1 {
 						panic("Not enough item on stack for '$' operator")
 					}
-					Output.Printf("%c", stack[len(stack)-1])
+					tempStack[i] = byte(stack[len(stack)-1])
 					stack = stack[0 : len(stack)-1]
 				}
+				Output.Printf("%s", tempStack)
 			} else {
 				Assembly.Printf("call Print_On_Stack")
 			}
@@ -292,11 +295,11 @@ Print_On_Stack:
 
 Print_Number:
 	mov rbx, 10; divisor
-	xor rcx, rcx; CX=0 (number of digits)
+	xor rcx, rcx; RCX=0 (number of digits)
 
 Getting_Digits_Loop:
 	xor  rdx, rdx; Attention: DIV applies also RDX!
-	div  rbx; RDX:RAX / BX = AX remainder: RDX
+	div  rbx; RDX:RAX / RBX = RAX remainder: RDX
 	push dx; LIFO
 	inc  rcx; increment number of digits
 	test rax, rax; RAX = 0?

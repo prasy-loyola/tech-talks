@@ -1,0 +1,16 @@
+1 
+if
+    116 114 117 101 4  puts 
+else 
+    102 97 108 115 101 5 puts 
+then 
+10 1 puts
+
+1 - 
+if
+    116 114 117 101 4  puts 
+else 
+    102 97 108 115 101 5 puts 
+then 
+10 1 puts
+

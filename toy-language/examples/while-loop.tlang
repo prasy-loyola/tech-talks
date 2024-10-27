@@ -1,10 +1,10 @@
-10 
+10
 while 
     dup
-    while 
-        97 1 puts
+    while
+        42 1 puts
         1 -
     end
     10 2 puts
-    1 -
+    1 - 
 end
