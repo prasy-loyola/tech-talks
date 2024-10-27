@@ -14,8 +14,10 @@ func main() {
 
 	ifCount := 0
 	whileCount := 0
-	currIf := ifCount
-	currWhile := whileCount
+	var currIf int
+	ifStack := make([]int, 0)
+	var currWhile int
+	whileStack := make([]int, 0)
 
 	if len(args) < 3 {
 		Error.Printf("Missing arguments.\nUsage: tlangc <command> <filename>\ncommand: i - interpret, c - compile\n")
@@ -186,7 +188,8 @@ format ELF64 executable 3
 				panic("if condition Not Implemented")
 			} else {
 				ifCount++
-				currIf = ifCount
+				ifStack = append(ifStack, ifCount)
+				currIf = ifStack[len(ifStack)-1]
 				Assembly.Printf(`
 
 ; IF_%d starts
@@ -213,14 +216,24 @@ test rax, rax`, currIf)
 				panic("If-Else not supported in interpreter")
 			} else {
 				Assembly.Printf("IF_%d_THEN:", currIf)
-				currIf--
+				if len(ifStack) > 0 {
+					ifStack = ifStack[:len(ifStack)-1]
+					if len(ifStack) > 0 {
+						currIf = ifStack[len(ifStack)-1]
+					} else {
+						currIf = -1
+					}
+				} else {
+					panic("then without an if condition")
+				}
 			}
 		} else if token == "while" {
 			if interpreter {
 				panic("while not supported in interpreter")
 			} else {
 				whileCount++
-				currWhile = whileCount
+				whileStack = append(whileStack, whileCount)
+				currWhile = whileStack[len(whileStack)-1]
 				Assembly.Printf(`
 
 ; WHILE_%d starts
@@ -239,7 +252,16 @@ test rax, rax`, currWhile, currWhile)
 			} else {
 				Assembly.Printf("jmp WHILE_%d", currWhile)
 				Assembly.Printf("WHILE_%d_END:", currWhile)
-				currWhile--
+				if len(whileStack) > 0 {
+					whileStack = whileStack[:len(whileStack)-1]
+                    if len(whileStack) > 0 {
+				        currWhile = whileStack[len(whileStack) - 1]
+                    } else {
+                        currWhile = -1
+                    }
+				} else {
+                    panic("'end' without a while ")
+                }
 			}
 		} else if token == "dup" {
 			if interpreter {

@@ -5,6 +5,12 @@ while
         42 1 puts
         1 -
     end
+    1 puts
+    dup
+    while
+        41 1 puts
+        1 -
+    end
     10 2 puts
     1 - 
 end
